@@ -26,7 +26,6 @@ on:
 # Workflow to restart AWS services
 jobs:
   deploy:
-    name: Redeploy service
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS credentials
