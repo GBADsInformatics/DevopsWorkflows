@@ -20,6 +20,11 @@ on:
         required: false
         type: string
         default: "./Dockerfile"
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
         
 
 # Workflow to build and push docker containers
