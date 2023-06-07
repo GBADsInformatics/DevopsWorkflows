@@ -1,0 +1,41 @@
+# Defining reusable workflow
+name: AWS
+
+# Trigger
+on:
+  workflow_call:
+    inputs:
+      SERVICE_NAME:
+        required: true
+        type: string
+      CLUSTER_NAME:
+        required: false
+        type: string
+        default: "GBADs-Dashboards-Cluster"
+      AWS_REGION:
+        required: false
+        type: string
+        default: "us-east-2"
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+        
+
+# Workflow to restart AWS services
+jobs:
+  deploy:
+    name: Redeploy service
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Redeploy Amazon ECS service
+        run: |
+          aws ecs update-service --cluster ${{ env.CLUSTER_NAME }} --service ${{ env.SERVICE_NAME }} --force-new-deployment
