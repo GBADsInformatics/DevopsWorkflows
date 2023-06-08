@@ -9,11 +9,11 @@ on:
         required: true
         type: string
       CLUSTER_NAME:
-        required: true
+        required: false
         type: string
         default: "GBADs-Dashboards-Cluster"
       AWS_REGION:
-        required: true
+        required: false
         type: string
         default: "us-east-2"
     secrets:
