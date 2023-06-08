@@ -9,15 +9,15 @@ on:
         required: true
         type: string
       TAG:
-        required: false
+        required: true
         type: string
         default: "latest"
       CONTEXT:
-        required: false
+        required: true
         type: string
         default: "."
       DOCKERFILE:
-        required: false
+        required: true
         type: string
         default: "./Dockerfile"
     secrets:
