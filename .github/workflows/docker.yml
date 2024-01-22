@@ -55,4 +55,4 @@ jobs:
           file: ${{ inputs.DOCKERFILE }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.IMAGE_NAME }}:${{ inputs.TAG }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.IMAGE_NAME }}:$( git rev-parse --short=7 $GITHUB_SHA )
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.IMAGE_NAME }}:${{  github.sha | substring(0, 7) }}
