@@ -55,4 +55,6 @@ jobs:
           file: ${{ inputs.DOCKERFILE }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.IMAGE_NAME }}:${{ inputs.TAG }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.IMAGE_NAME }}:${{  github.sha | substring(0, 7) }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.IMAGE_NAME }}:${{ env.COMMIT_HASH }}
+        env:
+          COMMIT_HASH: ${{ github.sha | substring(0, 7) }}
