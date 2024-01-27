@@ -43,4 +43,5 @@ jobs:
         run: |
           existing_image_tag=$(aws ecs describe-task-definition --task-definition $existing_image --query 'taskDefinition.containerDefinitions[0].image' --output text)
           echo "TESTIMAGE: $existing_image_tag"
-          aws ecs update-service --cluster ${{ inputs.CLUSTER_NAME }} --service ${{ inputs.SERVICE_NAME }} --force-new-deployment
+          
+# aws ecs update-service --cluster ${{ inputs.CLUSTER_NAME }} --service ${{ inputs.SERVICE_NAME }} --force-new-deployment
