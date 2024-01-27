@@ -40,8 +40,70 @@ jobs:
           aws-region: ${{ inputs.AWS_REGION }}
 
       - name: Redeploy Amazon ECS service
+        id: deploy-aws
         run: |
-          existing_image_tag=$(aws ecs describe-task-definition --task-definition $existing_image --query 'taskDefinition.containerDefinitions[0].image' --output text)
-          echo "TESTIMAGE: $existing_image_tag"
+          # This script retrieves the existing docker container uri, then combines it with the new commit hash to get the newest container
+          # it then creates a task definition and updates the service.
           
-# aws ecs update-service --cluster ${{ inputs.CLUSTER_NAME }} --service ${{ inputs.SERVICE_NAME }} --force-new-deployment
+          # Retrieving the current task definition
+          existing_task_definition=$(aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query 'services[0].taskDefinition' --output text)
+          
+          # Retreiving the existing task definition family & ecs container name
+          task_family_name=$(aws ecs describe-task-definition --task-definition $existing_task_definition --query 'taskDefinition.family' --output text)
+          container_name=$(aws ecs describe-task-definition --task-definition $existing_task_definition --query 'taskDefinition.containerDefinitions[0].name' --output text)
+
+          # Finding the existing container image. For instance, gbadsinformatics/some-dashboard:xxxxxx
+          existing_docker_uri=$(aws ecs describe-task-definition --task-definition $existing_task_definition --query 'taskDefinition.containerDefinitions[0].image' --output text)
+          
+          # Take the container image and replacing the tag with the new commit hash
+          new_docker_uri=$( sed 's/\:[^.]*$//' <<<$existing_docker_uri ):${{ steps.commit-hash.outputs.sha7 }}
+
+          # Registering the newest task definition with the new docker container
+          new_task_definition=$(aws ecs register-task-definition --family $task_family_name \
+            --container-definitions "[{\"name\":\"$container_name\",\"image\":\"$new_docker_uri\"}]" \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
+
+          # Updating the ecs service to use the new task definition
+          aws ecs update-service --cluster ${{ inputs.CLUSTER_NAME }} --service ${{ inputs.SERVICE_NAME }} --task-definition $new_task_definition --force-new-deployment
+
+          # Retreive log information for later steps          
+          echo "Waiting for container to start"
+          sleep 10
+          container_id=$(aws ecs list-tasks --cluster $CLUSTER_NAME --service-name $SERVICE_NAME --query 'taskArns[0]' --output text | rev | sed 's/\/[^.]*$//' | rev)
+          log_stream_name="ecs/${container_name}/${container_id}"
+          log_group_name=$(aws ecs describe-task-definition --task-definition $existing_task_definition --query 'taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-group"' --output text)
+
+          echo "::set-output name=log_group_name::$log_group_name"
+          echo "::set-output name=log_stream_name::$log_stream_name"
+
+      - name: Wait for ECS Service to be Healthy
+        run: |
+          # Wait up to 5 minutes for a successful deployment
+          timeout=300
+          sleep_duration=10
+          end_time=$(date -d "+$timeout seconds" +%s)
+          status=""
+          while [ $(date +%s) -lt $end_time ]; do
+            status=$(aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query 'services[0].events[0].message' --output text)
+            if [[ "$status" == *"has reached a steady state."* ]]; then
+              break
+            else
+              echo "Waiting for service to be healthy..."
+              sleep $sleep_duration
+            fi
+          done
+          if [[ "$status" == *"has reached a steady state."* ]]; then
+            echo "Service is healthy."
+          else
+            echo "Service is unhealthy"
+            exit 1
+          fi
+
+      - name: Get Container Logs
+        run: |
+          aws logs get-log-events \
+            --log-group-name ${{ steps.deploy-aws.outputs.log-group-name }} \
+            --log-stream-name ${{ steps.deploy-aws.outputs.log-stream-name }} \
+            --limit 250 \
+            --no-paginate \
+            --output text | tail -n +2
