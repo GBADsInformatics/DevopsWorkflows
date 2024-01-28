@@ -76,7 +76,7 @@ jobs:
             --cpu "$container_cpu" \
             --network-mode "$container_network_mode" \
             --execution-role-arn "$container_exec_role_arn" \
-            --requires-compatibilities "FARGATE"
+            --requires-compatibilities "FARGATE" \
             --query 'taskDefinition.taskDefinitionArn' --output text)
 
           # Updating the ecs service to use the new task definition
