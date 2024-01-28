@@ -61,7 +61,7 @@ jobs:
           # Registering the newest task definition with the new docker container
           new_task_definition=$(aws ecs register-task-definition \
             --family YOUR_FAMILY_NAME \
-            --container-definitions "$(aws ecs describe-task-definition --task-definition existing_task_definition --query 'taskDefinition.containerDefinitions' --output json | jq '.[0] |= . + {image: "$new_docker_uri"}')" \
+            --container-definitions "$(aws ecs describe-task-definition --task-definition $existing_task_definition --query 'taskDefinition.containerDefinitions' --output json | jq '.[0] |= . + {image: "$new_docker_uri"}')" \
             --query 'taskDefinition.taskDefinitionArn' --output text)
 
           # Updating the ecs service to use the new task definition
