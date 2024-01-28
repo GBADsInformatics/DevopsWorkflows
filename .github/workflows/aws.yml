@@ -46,22 +46,32 @@ jobs:
           # it then creates a task definition and updates the service.
           
           # Retrieving the current task definition
-          existing_task_definition=$(aws ecs describe-services --cluster ${{ inputs.CLUSTER_NAME }} --services ${{ inputs.SERVICE_NAME }} --query 'services[0].taskDefinition' --output text)
+          existing_task_definition_arn=$(aws ecs describe-services --cluster ${{ inputs.CLUSTER_NAME }} --services ${{ inputs.SERVICE_NAME }} --query 'services[0].taskDefinition' --output text)
+          existing_task_definition_obj=$(aws ecs describe-task-definition --task-definition $existing_task_definition_arn)
           
           # Retreiving the existing task definition family & ecs container name
-          task_family_name=$(aws ecs describe-task-definition --task-definition ${existing_task_definition} --query 'taskDefinition.family' --output text)
-          container_name=$(aws ecs describe-task-definition --task-definition ${existing_task_definition} --query 'taskDefinition.containerDefinitions[0].name' --output text)
+          task_family_name=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.family')
+          container_name=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.containerDefinitions[0].name')
 
           # Finding the existing container image. For instance, gbadsinformatics/some-dashboard:xxxxxx
-          existing_docker_uri=$(aws ecs describe-task-definition --task-definition ${existing_task_definition} --query 'taskDefinition.containerDefinitions[0].image' --output text)
+          existing_docker_uri=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.containerDefinitions[0].image')
           
           # Take the container image and replacing the tag with the new commit hash
           new_docker_uri=$( sed 's/\:[^.]*$//' <<<$existing_docker_uri ):${{ steps.commit-hash.outputs.sha7 }}
 
+          # Get memory and cpu variables
+          container_memory=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.memory')
+          container_cpu=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.cpu')
+
+          # Get existing container details but replace the image with the new image
+          container_definition=$(echo $(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.containerDefinitions') | jq '.[0] |= . + {image: "'$new_docker_uri'"}')
+
           # Registering the newest task definition with the new docker container
           new_task_definition=$(aws ecs register-task-definition \
-            --family YOUR_FAMILY_NAME \
-            --container-definitions "$(aws ecs describe-task-definition --task-definition $existing_task_definition --query 'taskDefinition.containerDefinitions' --output json | jq '.[0] |= . + {image: "'$new_docker_uri'"}')" \
+            --family "$task_family_name" \
+            --container-definitions "$container_definition" \
+            --memory "$container_memory" \
+            --cpu "$container_cpu" \
             --query 'taskDefinition.taskDefinitionArn' --output text)
 
           # Updating the ecs service to use the new task definition
