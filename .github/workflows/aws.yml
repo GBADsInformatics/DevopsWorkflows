@@ -62,6 +62,8 @@ jobs:
           # Get memory and cpu variables
           container_memory=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.memory')
           container_cpu=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.cpu')
+          container_network_mode=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.networkMode')
+          container_exec_role_arn=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.executionRoleArn')
 
           # Get existing container details but replace the image with the new image
           container_definition=$(echo $(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.containerDefinitions') | jq '.[0] |= . + {image: "'$new_docker_uri'"}')
@@ -72,6 +74,9 @@ jobs:
             --container-definitions "$container_definition" \
             --memory "$container_memory" \
             --cpu "$container_cpu" \
+            --network-mode "$container_network_mode" \
+            --execution-role-arn "$container_exec_role_arn" \
+            --requires-compatibilities "FARGATE"
             --query 'taskDefinition.taskDefinitionArn' --output text)
 
           # Updating the ecs service to use the new task definition
