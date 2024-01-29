@@ -100,6 +100,7 @@ jobs:
           end_time=$(date -d "+$timeout seconds" +%s)
           status=""
           while [ $(date +%s) -lt $end_time ]; do
+            echo "Waiting for service to be healthy..."
             status=$(aws ecs describe-services --cluster ${{ inputs.CLUSTER_NAME }} --services ${{ inputs.SERVICE_NAME }} --query 'services[0].events[0].message' --output text)
             if [[ "$status" == *"has reached a steady state."* ]]; then
               break
@@ -118,8 +119,8 @@ jobs:
       - name: Get Container Logs
         run: |
           aws logs get-log-events \
-            --log-group-name ${{ steps.deploy-aws.outputs.log-group-name }} \
-            --log-stream-name ${{ steps.deploy-aws.outputs.log-stream-name }} \
+            --log-group-name ${{ steps.deploy-aws.outputs.log_group_name }} \
+            --log-stream-name ${{ steps.deploy-aws.outputs.log_stream_name }} \
             --limit 250 \
             --no-paginate \
             --output text | tail -n +2
