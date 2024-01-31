@@ -53,6 +53,7 @@ jobs:
           # Retreiving the existing task definition family & ecs container name
           echo "Extracting task definition family name and container name."
           task_family_name=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.family')
+          task_revision=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.revision')
           container_name=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.containerDefinitions[0].name')
 
           # Finding the existing container image. For instance, gbadsinformatics/some-dashboard:xxxxxx
@@ -93,9 +94,42 @@ jobs:
           # Retreive log information for later steps          
           echo "Waiting for container to start..."
           sleep 20
-          container_id=$(aws ecs list-tasks --cluster ${{ inputs.CLUSTER_NAME }} --service-name ${{ inputs.SERVICE_NAME }} --query 'taskArns[0]' --output text | rev | sed 's/\/[^.]*$//' | rev)
-          log_stream_name="ecs/${container_name}/${container_id}"
-          log_group_name=$(aws ecs describe-task-definition --task-definition $existing_task_definition_arn --query 'taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-group"' --output text)
+
+          # Set your ECS cluster and service names
+          TASK_DEFINITION="${task_family_name}:${task_revision}"
+
+          # 1. Get a list of all tasks (stopped or running) for a given service
+          TASKS=$(aws ecs list-tasks --cluster ${{ inputs.CLUSTER_NAME }} --service-name ${{ inputs.SERVICE_NAME }} --query 'taskArns' --output text)
+
+          if [ -z "$TASKS" ]; then
+            echo "No tasks found for service ${{ inputs.SERVICE_NAME }}."
+            exit 1
+          fi
+
+          # 2. Filter out tasks with the given task definition
+          FILTERED_TASKS=()
+          for TASK in $TASKS; do
+            TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition $TASK --query 'taskDefinition.taskDefinitionArn' --output text)
+
+            if [[ "$TASK_DEFINITION_ARN" == *"$TASK_DEFINITION"* ]]; then
+              FILTERED_TASKS+=("$TASK")
+            fi
+          done
+
+          if [ ${#FILTERED_TASKS[@]} -eq 0 ]; then
+            echo "No tasks found for task definition $TASK_DEFINITION in service ${{ inputs.SERVICE_NAME }}."
+            exit 1
+          fi
+
+          # 3. Sort tasks by time started
+          SORTED_TASKS=($(aws ecs describe-tasks --cluster ${{ inputs.CLUSTER_NAME }} --tasks "${FILTERED_TASKS[@]}" --query 'tasks | sort_by(@, &startedAt) | reverse(@) | .[].taskArn' --output text))
+
+          # 4. Get the containerID of the newest task
+          NEWEST_TASK="${SORTED_TASKS[0]}"
+          CONTAINER_ID=$(aws ecs describe-tasks --cluster ${{ inputs.CLUSTER_NAME }} --tasks $NEWEST_TASK --query 'tasks[0].containers[0].runtimeId' --output text)
+
+          log_stream_name="ecs/${container_name}/${CONTAINER_ID}"
+          log_group_name=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-group"')
 
           echo "::set-output name=rollback_task_definition_arn::${existing_task_definition_arn}"
           echo "::set-output name=log_group_name::${log_group_name}"
@@ -124,7 +158,7 @@ jobs:
             echo "Service is unhealthy. Please check the logs below for errors."
             echo "Initiating rollback..."
             aws ecs update-service --cluster ${{ inputs.CLUSTER_NAME }} --service ${{ inputs.SERVICE_NAME }} --task-definition ${{ steps.deploy-aws.outputs.rollback_task_definition_arn }} --force-new-deployment
-            echo "Rollback complete."
+            echo "Rollback started."
             exit 1
           fi
 
@@ -134,12 +168,9 @@ jobs:
           log_output=$(aws logs get-log-events \
             --log-group-name ${{ steps.deploy-aws.outputs.log_group_name }} \
             --log-stream-name ${{ steps.deploy-aws.outputs.log_stream_name }} \
-            --limit 250 \
-            --no-paginate \
-            --output text | tail -n +2)
-          if [[ "$log_output" == "" ]]; then
-            echo "No logs found..."
+            --limit 250 2>&1)
+          if [[ $log_output == *"An error occurred (ResourceNotFoundException) when calling the GetLogEvents operation"* ]]; then
+            echo "No logs found."
           else
-            echo "$log_output"
+            echo "$logs"
           fi
-          
