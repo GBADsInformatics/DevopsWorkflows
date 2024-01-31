@@ -53,7 +53,6 @@ jobs:
           # Retreiving the existing task definition family & ecs container name
           echo "Extracting task definition family name and container name."
           task_family_name=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.family')
-          task_revision=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.revision')
           container_name=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.containerDefinitions[0].name')
 
           # Finding the existing container image. For instance, gbadsinformatics/some-dashboard:xxxxxx
@@ -96,6 +95,8 @@ jobs:
           sleep 20
 
           # Set your ECS cluster and service names
+          new_task_definition_obj=$(aws ecs describe-task-definition --task-definition $new_task_definition)
+          task_revision=$(echo "$new_task_definition_obj" | jq -cr '.taskDefinition.revision')
           TASK_DEFINITION="${task_family_name}:${task_revision}"
 
           # 1. Get a list of all tasks (stopped or running) for a given service
@@ -127,6 +128,7 @@ jobs:
           # 4. Get the containerID of the newest task
           NEWEST_TASK="${SORTED_TASKS[0]}"
           CONTAINER_ID=$(aws ecs describe-tasks --cluster ${{ inputs.CLUSTER_NAME }} --tasks $NEWEST_TASK --query 'tasks[0].containers[0].runtimeId' --output text)
+          echo "New container started: $CONTAINER_ID"
 
           log_stream_name="ecs/${container_name}/${CONTAINER_ID}"
           log_group_name=$(echo "$existing_task_definition_obj" | jq -cr '.taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-group"')
@@ -166,6 +168,7 @@ jobs:
       - name: Get Container Logs
         if: always()
         run: |
+          echo "Fetching logs: $${{ steps.deploy-aws.outputs.log_group_name }}, ${{ steps.deploy-aws.outputs.log_stream_name }}"
           log_output=$(aws logs get-log-events \
             --log-group-name ${{ steps.deploy-aws.outputs.log_group_name }} \
             --log-stream-name ${{ steps.deploy-aws.outputs.log_stream_name }} \
