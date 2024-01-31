@@ -109,7 +109,7 @@ jobs:
           # 2. Filter out tasks with the given task definition
           FILTERED_TASKS=()
           for TASK in $TASKS; do
-            TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition $TASK --query 'taskDefinition.taskDefinitionArn' --output text)
+            TASK_DEFINITION_ARN=$(aws ecs describe-tasks --cluster ${{ inputs.CLUSTER_NAME }} --tasks $TASK --query 'tasks[0].taskDefinitionArn' --output text)
 
             if [[ "$TASK_DEFINITION_ARN" == *"$TASK_DEFINITION"* ]]; then
               FILTERED_TASKS+=("$TASK")
@@ -122,7 +122,7 @@ jobs:
           fi
 
           # 3. Sort tasks by time started
-          SORTED_TASKS=($(aws ecs describe-tasks --cluster ${{ inputs.CLUSTER_NAME }} --tasks "${FILTERED_TASKS[@]}" --query 'tasks | sort_by(@, &startedAt) | reverse(@) | .[].taskArn' --output text))
+          SORTED_TASKS=($(aws ecs describe-tasks --cluster ${{ inputs.CLUSTER_NAME }} --tasks "${FILTERED_TASKS[@]}" --query 'tasks | sort_by(@, &startedAt) | reverse(@) | [].taskArn' --output text))
 
           # 4. Get the containerID of the newest task
           NEWEST_TASK="${SORTED_TASKS[0]}"
@@ -136,6 +136,7 @@ jobs:
           echo "::set-output name=log_stream_name::${log_stream_name}"
 
       - name: Wait for ECS Service to be Healthy
+        if: always()
         run: |
           # Wait up to 10 minutes for a successful deployment
           timeout=600
