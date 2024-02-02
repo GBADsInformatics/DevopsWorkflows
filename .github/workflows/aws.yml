@@ -87,7 +87,7 @@ jobs:
 
           # Updating the ecs service to use the new task definition
           echo "Updating the service with the new task definition."
-          aws ecs update-service --cluster ${{ inputs.CLUSTER_NAME }} --service ${{ inputs.SERVICE_NAME }} --task-definition ${new_task_definition} --force-new-deployment
+          new_service=$(aws ecs update-service --cluster ${{ inputs.CLUSTER_NAME }} --service ${{ inputs.SERVICE_NAME }} --task-definition ${new_task_definition} --force-new-deployment)
 
           # Getting logs info
           log_start_time=$(date -u '+%s%3N')
@@ -131,9 +131,9 @@ jobs:
           echo "Fetching logs: ${{ steps.deploy-aws.outputs.log_group_name }}"
           log_end_time=$(date -u '+%s%3N')
           log_output=$(aws logs filter-log-events \
-            --log-group-name /ecs/layinghens-dash-logs \
+            --log-group-name ${{ steps.deploy-aws.outputs.log_group_name }} \
             --start-time ${{ steps.deploy-aws.outputs.log_start_time }} \
-            --end-time $log_end_time \
+            --end-time ${log_end_time} \
             --query 'events[*].[message]' \
             --limit 250
             --output text 2>&1)
