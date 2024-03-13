@@ -34,7 +34,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
+      - name: Get Commit SHA
+        id: commit-hash
+        run: echo "::set-output name=sha7::$(echo ${GITHUB_SHA} | cut -c1-7)"
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       
@@ -53,4 +57,6 @@ jobs:
           push: true
           context: ${{ inputs.CONTEXT }}
           file: ${{ inputs.DOCKERFILE }}
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.IMAGE_NAME }}:${{ inputs.TAG }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.IMAGE_NAME }}:${{ inputs.TAG }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.IMAGE_NAME }}:${{ steps.commit-hash.outputs.sha7 }}
