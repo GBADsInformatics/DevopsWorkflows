@@ -9,8 +9,9 @@ on:
         required: true
         type: string
       template-file:
-        required: true
+        required: false
         type: string
+        default: '.aws/deployment.yml'
       template-inputs:
         required: true
         type: string
