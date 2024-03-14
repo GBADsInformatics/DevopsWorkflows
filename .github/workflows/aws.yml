@@ -5,13 +5,19 @@ name: AWS
 on:
   workflow_call:
     inputs:
-      SERVICE_NAME:
+      stack-name:
         required: true
         type: string
-      CLUSTER_NAME:
+      template-file:
+        required: true
+        type: string
+      template-inputs:
+        required: true
+        type: string
+      no-fail-on-empty-changeset:
         required: false
         type: string
-        default: "GBADs-Dashboards-Cluster"
+        default: "1"
       AWS_REGION:
         required: false
         type: string
@@ -26,15 +32,34 @@ on:
 # Workflow to restart AWS services
 jobs:
   deploy:
+    name: Deploy AWS CloudFormation stack
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Configure AWS credentials
+        id: configure-credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ inputs.AWS_REGION }}
 
-      - name: Redeploy Amazon ECS service
-        run: |
-          aws ecs update-service --cluster ${{ inputs.CLUSTER_NAME }} --service ${{ inputs.SERVICE_NAME }} --force-new-deployment
+      - name: Deploy AWS CloudFormation template
+        id: deploy-cloudformation-template
+        uses: aws-actions/aws-cloudformation-github-deploy@master
+        with:
+          name: ${{ inputs.stack-name }}
+          template: ${{ inputs.template-file }}
+          no-fail-on-empty-changeset: ${{ inputs.no-fail-on-empty-changeset }}
+          parameter-overrides: ${{ inputs.template-inputs }}
+          # parameter-overrides: >-
+          #   AvailabilityZones=${{ github.event.inputs.region }}a,
+          #   AvailabilityZones=${{ github.event.inputs.region }}c,
+          #   KeyPairName=${{ github.event.inputs.keypair }},
+          #   NumberOfAZs=2,
+          #   ProvisionBastionHost=Disabled,
+          #   EKSPublicAccessEndpoint=Enabled,
+          #   EKSPrivateAccessEndpoint=Enabled,
+          #   RemoteAccessCIDR=0.0.0.0/0
