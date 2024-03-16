@@ -100,11 +100,14 @@ jobs:
             # Cancel stack update
             aws cloudformation cancel-update-stack --stack-name "$stackname"
             echo "Stack update canceled due to UPDATE_IN_PROGRESS status"
+            exit 1
           else
             echo "Stack '$stackname' failed with status '$status'"
+            exit 1
           fi
 
       - name: Container logs
+        if: always()
         run:  |
           log_group_name=$(aws cloudformation describe-stack-resources \
             --stack-name "${{inputs.stack-name}}" \
@@ -125,8 +128,8 @@ jobs:
 
           # Fetch logs from CloudWatch Logs
           logs=$(aws logs get-log-events \
-            --log-group-name "/ecs/api-logs" \
-            --log-stream-name "ecs/api-container/dddaf41809ec474b89ce48702734120b" \
+            --log-group-name "$log_group_name" \
+            --log-stream-name "$log_stream_name" \
             --start-time $start_time \
             --end-time $end_time \
             --query 'events[*].message' \
