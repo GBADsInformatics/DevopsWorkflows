@@ -118,7 +118,7 @@ jobs:
             --output text)
 
           # Get the start time for logs (30 minutes ago) in Unix timestamp format
-          start_time=$(date -u -d "-30 minutes" '+%s%3N')
+          start_time=$(date -u -d "-$((${{ inputs.stack-update-timeout}} + 1)) minutes" '+%s%3N')
 
           # Get the end time for logs (now) in Unix timestamp format
           end_time=$(date -u '+%s%3N')
@@ -134,6 +134,6 @@ jobs:
             --output json 2>&1)
 
           # Print the logs
-          # echo -e "$logs"
+          echo -e "$logs"
 
 
