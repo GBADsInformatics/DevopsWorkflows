@@ -124,7 +124,7 @@ jobs:
           end_time=$(date -u '+%s%3N')
 
           # Fetch logs from CloudWatch Logs
-          logs = $(aws logs get-log-events \
+          logs=$(aws logs get-log-events \
             --log-group-name "/ecs/api-logs" \
             --log-stream-name "ecs/api-container/dddaf41809ec474b89ce48702734120b" \
             --start-time $start_time \
