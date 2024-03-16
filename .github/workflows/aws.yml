@@ -72,12 +72,13 @@ jobs:
 
           # Wait up to $inputs.stack-update-timeout minutes for a successful deployment
           timeout=${{ inputs.stack-update-timeout}}
+          stackname=${{ inputs.stack-name }}
           sleep_duration=25
           end_time=$(date -d "+$timeout minutes" +%s)
           success=false
           while [ $(date +%s) -lt $end_time ]; do
             echo "Waiting for stack update to be complete..."
-            status=$(aws cloudformation describe-stacks --stack-name "${{ inputs.stack-name }}" --query 'Stacks[0].StackStatus' --output text)
+            status=$(aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text)
             if [[ "$status" == 'UPDATE_COMPLETE' || "$status" == 'CREATE_COMPLETE' ]]; then
               success=true
               break
@@ -86,21 +87,21 @@ jobs:
             fi
           done
           
-          status=$(aws cloudformation describe-stacks --stack-name "${{ inputs.stack-name }}" --query 'Stacks[0].StackStatus' --output text)
+          status=$(aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text)
           if [ "$success" = true]; then
             echo "Stack is healthy with status '$status'"
           elif [[ "$status" == 'UPDATE_IN_PROGRESS' ]]; then
             # Cancel stack update
-            aws cloudformation cancel-update-stack --stack-name "${{ inputs.stack-name }}"
+            aws cloudformation cancel-update-stack --stack-name "$stackname"
             echo "Stack update canceled due to UPDATE_IN_PROGRESS status"
           else
-            echo "Stack '${{ inputs.stack-name }}' failed with status '$status'"
+            echo "Stack '$stackname' failed with status '$status'"
           fi
 
       - name: Container logs
         run:  |
           log_group_name=$(aws cloudformation describe-stack-resources \
-            --stack-name "${{ inputs.stack-name }}" \
+            --stack-name "${{inputs.stack-name}}" \
             --query 'StackResources[?ResourceType == `AWS::Logs::LogGroup`].PhysicalResourceId' \
             --output text)
 
