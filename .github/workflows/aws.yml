@@ -67,6 +67,8 @@ jobs:
     steps:
       - name: Stack health check
         run:  |
+          export AWS_REGION="${{ inputs.AWS_REGION }}"
+
           # Wait 1 minute before starting healthchecks
           sleep 6
 
