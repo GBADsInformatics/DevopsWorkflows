@@ -65,22 +65,27 @@ jobs:
     name: Healthcheck & Container Logs
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS credentials
+        id: configure-credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ inputs.AWS_REGION }}
+
       - name: Stack health check
         run:  |
-          export AWS_REGION="${{ inputs.AWS_REGION }}"
-
           # Wait 1 minute before starting healthchecks
-          sleep 6
+          sleep 60
 
           # Wait up to $inputs.stack-update-timeout minutes for a successful deployment
           timeout=${{ inputs.stack-update-timeout}}
-          stackname="${{ inputs.stack-name }}"
+          stackname=${{ inputs.stack-name }}
           sleep_duration=25
           end_time=$(date -d "+$timeout minutes" +%s)
           while [ $(date +%s) -lt $end_time ]; do
             echo "Waiting for stack update to be complete..."
-            echo "$(aws cloudformation describe-stacks --debug --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text 2>&1)"
-            status=$(aws cloudformation describe-stacks --debug --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text)
+            status=$(aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text 2>&1)
             if [[ "$status" == 'UPDATE_COMPLETE' || "$status" == 'CREATE_COMPLETE' ]]; then
               break
             else
@@ -88,7 +93,7 @@ jobs:
             fi
           done
           
-          status=$(aws cloudformation describe-stacks --debug --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text)
+          status=$(aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text 2>&1)
           if [[ "$status" == 'UPDATE_COMPLETE' || "$status" == 'CREATE_COMPLETE' ]]; then
             echo "Stack is healthy with status '$status'"
           elif [[ "$status" == 'UPDATE_IN_PROGRESS' ]]; then
