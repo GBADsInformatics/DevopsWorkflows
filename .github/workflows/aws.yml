@@ -75,13 +75,11 @@ jobs:
           stackname=${{ inputs.stack-name }}
           sleep_duration=25
           end_time=$(date -d "+$timeout minutes" +%s)
-          success=false
           while [ $(date +%s) -lt $end_time ]; do
             echo "Waiting for stack update to be complete..."
             aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text
             status=$(aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text)
             if [[ "$status" == 'UPDATE_COMPLETE' || "$status" == 'CREATE_COMPLETE' ]]; then
-              success=true
               break
             else
               sleep $sleep_duration
@@ -89,7 +87,7 @@ jobs:
           done
           
           status=$(aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text)
-          if [ "$success" = true]; then
+          if [[ "$status" == 'UPDATE_COMPLETE' || "$status" == 'CREATE_COMPLETE' ]]; then
             echo "Stack is healthy with status '$status'"
           elif [[ "$status" == 'UPDATE_IN_PROGRESS' ]]; then
             # Cancel stack update
