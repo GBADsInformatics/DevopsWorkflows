@@ -72,13 +72,13 @@ jobs:
 
           # Wait up to $inputs.stack-update-timeout minutes for a successful deployment
           timeout=${{ inputs.stack-update-timeout}}
-          stackname=${{ inputs.stack-name }}
+          stackname="${{ inputs.stack-name }}"
           sleep_duration=25
           end_time=$(date -d "+$timeout minutes" +%s)
           while [ $(date +%s) -lt $end_time ]; do
             echo "Waiting for stack update to be complete..."
-            echo "$(aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text 2>&1)"
-            status=$(aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text)
+            echo "$(aws cloudformation describe-stacks --debug --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text 2>&1)"
+            status=$(aws cloudformation describe-stacks --debug --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text)
             if [[ "$status" == 'UPDATE_COMPLETE' || "$status" == 'CREATE_COMPLETE' ]]; then
               break
             else
@@ -86,7 +86,7 @@ jobs:
             fi
           done
           
-          status=$(aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text)
+          status=$(aws cloudformation describe-stacks --debug --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text)
           if [[ "$status" == 'UPDATE_COMPLETE' || "$status" == 'CREATE_COMPLETE' ]]; then
             echo "Stack is healthy with status '$status'"
           elif [[ "$status" == 'UPDATE_IN_PROGRESS' ]]; then
