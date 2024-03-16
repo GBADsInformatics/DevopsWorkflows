@@ -68,7 +68,7 @@ jobs:
       - name: Stack health check
         run:  |
           # Wait 1 minute before starting healthchecks
-          sleep 60
+          sleep 6
 
           # Wait up to $inputs.stack-update-timeout minutes for a successful deployment
           timeout=${{ inputs.stack-update-timeout}}
@@ -78,6 +78,7 @@ jobs:
           success=false
           while [ $(date +%s) -lt $end_time ]; do
             echo "Waiting for stack update to be complete..."
+            aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text
             status=$(aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text)
             if [[ "$status" == 'UPDATE_COMPLETE' || "$status" == 'CREATE_COMPLETE' ]]; then
               success=true
