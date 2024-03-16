@@ -77,7 +77,7 @@ jobs:
           end_time=$(date -d "+$timeout minutes" +%s)
           while [ $(date +%s) -lt $end_time ]; do
             echo "Waiting for stack update to be complete..."
-            aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text
+            echo "$(aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text 2>&1)"
             status=$(aws cloudformation describe-stacks --stack-name "$stackname" --query 'Stacks[0].StackStatus' --output text)
             if [[ "$status" == 'UPDATE_COMPLETE' || "$status" == 'CREATE_COMPLETE' ]]; then
               break
