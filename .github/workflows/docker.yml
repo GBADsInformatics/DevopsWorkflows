@@ -30,6 +30,7 @@ on:
 # Workflow to build and push docker containers
 jobs:
   build_and_push:
+    name: Build & Push Docker Image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
