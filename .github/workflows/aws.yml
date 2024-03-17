@@ -109,34 +109,43 @@ jobs:
       - name: Container logs
         if: always()
         run:  |
+          # Retrieving and printing container logs
+          # Fetching group name
           log_group_name=$(aws cloudformation describe-stack-resources \
             --stack-name "${{inputs.stack-name}}" \
             --query 'StackResources[?ResourceType == `AWS::Logs::LogGroup`].PhysicalResourceId' \
             --output text)
 
+
           # Get the log stream name from the CloudWatch Logs group
-          log_stream_name=$(aws logs describe-log-streams \
+          log_stream_names=$(aws logs describe-log-streams \
             --log-group-name "$log_group_name" \
-            --query 'logStreams[0].logStreamName' \
-            --output text)
+            --query 'logStreams[*].logStreamName' \
+            --order-by LastEventTime \
+            --max-items 3 \
+            --descending \
+            --output json)
 
           # Get the start time for logs (30 minutes ago) in Unix timestamp format
-          start_time=$(date -u -d "-$((${{ inputs.stack-update-timeout}} + 1)) minutes" '+%s%3N')
+          start_time=$(date -u -d "-$((${{inputs.stack-update-timeout}} + 1)) minutes" '+%s%3N')
 
           # Get the end time for logs (now) in Unix timestamp format
           end_time=$(date -u '+%s%3N')
 
-          # Fetch logs from CloudWatch Logs
-          logs=$(aws logs get-log-events \
-            --log-group-name "$log_group_name" \
-            --log-stream-name "$log_stream_name" \
-            --start-time $start_time \
-            --end-time $end_time \
-            --query 'events[*].message' \
-            --limit 250 \
-            --output json 2>&1)
+          logs=()
+          for log_stream in $(echo "${log_stream_names}" | jq -r '.[]'); do
+            logs+=("$(aws logs get-log-events \
+              --log-group-name "$log_group_name" \
+              --log-stream-name "$log_stream" \
+              --start-time $start_time \
+              --end-time $end_time \
+              --query 'events[*].message' \
+              --output json)")
+          done
 
-          # Print the logs
-          echo -e "$logs"
-
+          # Print the container logs in reverse order
+          echo "Printing last ${{ inputs.stack-update-timeout }} minutes of logs:"
+          for ((i=${#logs[@]}-1; i>=0; i--)); do
+            echo "${logs[i]}"
+          done
 
