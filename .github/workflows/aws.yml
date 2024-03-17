@@ -144,8 +144,12 @@ jobs:
           done
 
           # Print the container logs in reverse order
-          echo "Printing last ${{ inputs.stack-update-timeout }} minutes of logs:"
-          for ((i=${#logs[@]}-1; i>=0; i--)); do
-            echo "${logs[i]}"
-          done
+            echo "Printing last ${{ inputs.stack-update-timeout}} minutes of logs:"
+            for ((i=${#logs[@]}-1; i>=0; i--)); do
+              echo -e "\nContainer logs [$i]\n"
+              # Loop through the JSON array and print each string
+              echo "${logs[i]}" | jq -r '.[]' | while IFS= read -r log; do
+                echo "$log"
+              done
+            done
 
