@@ -12,9 +12,6 @@ on:
         required: false
         type: string
         default: '.aws/deployment.yml'
-      template-inputs:
-        required: false
-        type: string
       no-fail-on-empty-changeset:
         required: false
         type: string
