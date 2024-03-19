@@ -33,6 +33,8 @@ on:
         required: true
       AWS_SECRET_ACCESS_KEY:
         required: true
+      template-input:
+        required: false
         
 
 # Workflow to restart AWS services
@@ -59,7 +61,7 @@ jobs:
           name: ${{ inputs.stack-name }}
           template: ${{ inputs.template-file }}
           no-fail-on-empty-changeset: ${{ inputs.no-fail-on-empty-changeset }}
-          parameter-overrides: ${{ inputs.template-inputs }}
+          parameter-overrides: ${{ secrets.template-input }}
 
   post-deploy:
     name: Healthcheck & Container Logs
